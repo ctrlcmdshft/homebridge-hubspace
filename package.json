@@ -6,6 +6,9 @@
   "homepage": "https://github.com/JakeAi/homebridge-hubspace#readme",
   "author": "Adam Simonicek",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/JakeAi/homebridge-hubspace.git"
