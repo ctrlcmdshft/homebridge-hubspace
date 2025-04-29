@@ -5,7 +5,8 @@ import { TokenResponse } from '../responses/token-response';
 /**
  * Service for managing JWT tokens
  */
-export class TokenService {
+class TokenService {
+    public loginBuffer: number = 60;
     private _refreshInterval?: NodeJS.Timeout;
     private readonly _httpClient = axios.create({
         baseURL: Endpoints.ACCOUNT_BASE_URL
@@ -14,32 +15,23 @@ export class TokenService {
     private _accessTokenExpiration?: Date;
     private _refreshToken?: string;
     private _refreshTokenExpiration?: Date;
+    private _username: string = '';
+    private _password: string = '';
 
     /**
      * Creates a new instance of token service
-     * @param _username Account username
-     * @param _password Account password
      */
-    private constructor(
-        private readonly _username: string,
-        private readonly _password: string) { }
+    constructor() { }
 
-    private static _instance: TokenService;
-
-    /**
-     * {@link TokenService} instance
-     */
-    public static get instance(): TokenService {
-        return TokenService._instance;
-    }
 
     /**
      * Initializes {@link TokenService}
      * @param username Account username
      * @param password Account password
      */
-    public static init(username: string, password: string): void {
-        TokenService._instance = new TokenService(username, password);
+    public login(username: string, password: string): void {
+        this._username = username;
+        this._password = password;
     }
 
     public async getToken(): Promise<string | undefined> {
@@ -60,9 +52,10 @@ export class TokenService {
         }
 
         this._refreshInterval = setInterval(async () => {
-            const bufferTime = 60 * 1000; // 1 minute before expiration
+            console.log(this.isAccessTokenExpired(), this.isRefreshTokenExpired());
+            const bufferTime = this.loginBuffer * 1000; // minutes before expiration
             const now = new Date().getTime();
-            const exp = this._accessTokenExpiration?.getTime() ?? 0;
+            const exp = this._refreshTokenExpiration?.getTime() ?? 0;
 
             if (exp - now < bufferTime) {
                 await this.authenticate();
@@ -138,6 +131,13 @@ export class TokenService {
         this._accessTokenExpiration = new Date(currentDate.getTime() + response.expires_in * 1000);
         this._refreshTokenExpiration = new Date(currentDate.getTime() + response.refresh_expires_in * 1000);
 
+        // log current time in a readable format
+        console.log('Current time:', currentDate.toISOString());
+
+        // log the timestamp of the expiration in a readable format
+        console.log('Access token expiration:', this._accessTokenExpiration.toISOString());
+        console.log('Refresh token expiration:', this._refreshTokenExpiration.toISOString());
+
         this.startAutoRefresh();
     }
 
@@ -174,3 +174,5 @@ export class TokenService {
     }
 
 }
+
+export const tokenService: TokenService = new TokenService();

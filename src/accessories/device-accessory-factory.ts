@@ -15,8 +15,8 @@ import { OutletAccessory } from './outlet-accessory';
  * @returns {@link HubspaceAccessory}
  * @throws If device type is not supported
  */
-export function createAccessoryForDevice(device: Device, platform: HubspacePlatform, accessory: PlatformAccessory): HubspaceAccessory{
-    switch(device.type){
+export function createAccessoryForDevice(device: Device, platform: HubspacePlatform, accessory: PlatformAccessory): HubspaceAccessory {
+    switch (device.type) {
         case DeviceType.Light:
             return new LightAccessory(platform, accessory);
         case DeviceType.Fan:
