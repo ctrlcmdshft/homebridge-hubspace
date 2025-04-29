@@ -8,21 +8,20 @@ import { TokenResponse } from '../responses/token-response';
 class TokenService {
     public loginBuffer: number = 60;
     private _refreshInterval?: NodeJS.Timeout;
-    private readonly _httpClient = axios.create({
-        baseURL: Endpoints.ACCOUNT_BASE_URL
-    });
+    private readonly _httpClient = axios.create({ baseURL: Endpoints.ACCOUNT_BASE_URL });
+
     private _accessToken?: string;
     private _accessTokenExpiration?: Date;
     private _refreshToken?: string;
     private _refreshTokenExpiration?: Date;
     private _username: string = '';
     private _password: string = '';
+    private _authenticatingPromise?: Promise<boolean>;
 
     /**
      * Creates a new instance of token service
      */
     constructor() { }
-
 
     /**
      * Initializes {@link TokenService}
@@ -36,7 +35,7 @@ class TokenService {
 
     public async getToken(): Promise<string | undefined> {
         if (!this.hasValidToken()) {
-            await this.authenticate();
+            await this.authenticate();  // will deduplicate automatically now
         }
 
         return this._accessToken;
@@ -52,7 +51,6 @@ class TokenService {
         }
 
         this._refreshInterval = setInterval(async () => {
-            console.log(this.isAccessTokenExpired(), this.isRefreshTokenExpired());
             const bufferTime = this.loginBuffer * 1000; // minutes before expiration
             const now = new Date().getTime();
             const exp = this._refreshTokenExpiration?.getTime() ?? 0;
@@ -64,16 +62,23 @@ class TokenService {
     }
 
     private async authenticate(): Promise<boolean> {
-        // If nothing is expired then no need to run authentication again
-        if (!this.isAccessTokenExpired() && !this.isRefreshTokenExpired()) return true;
+        if (this._authenticatingPromise) {
+            // If already authenticating, reuse it
+            return this._authenticatingPromise;
+        }
 
-        const tokenResponse = await this.getTokenFromRefreshToken() || await this.getTokenFromCredentials();
+        this._authenticatingPromise = (async () => {
+            if (!this.isAccessTokenExpired() && !this.isRefreshTokenExpired()) return true;
+            const tokenResponse = await this.getTokenFromRefreshToken() || await this.getTokenFromCredentials();
+            this.setTokens(tokenResponse);
+            return !!tokenResponse;
+        })();
 
-        this.setTokens(tokenResponse);
-
-        if (!tokenResponse) return false;
-
-        return true;
+        try {
+            return await this._authenticatingPromise;
+        } finally {
+            this._authenticatingPromise = undefined;  // clear once finished
+        }
     }
 
     private async getTokenFromRefreshToken(): Promise<TokenResponse | undefined> {
@@ -88,9 +93,8 @@ class TokenService {
 
         try {
             const response = await this._httpClient.post('/protocol/openid-connect/token', params);
-
             return response.status === 200 ? response.data : undefined;
-        } catch (exception) {
+        } catch {
             return undefined;
         }
     }
@@ -107,7 +111,7 @@ class TokenService {
             const response = await this._httpClient.post('/protocol/openid-connect/token', params);
 
             return response.status === 200 ? response.data : undefined;
-        } catch (exception) {
+        } catch {
             return undefined;
         }
     }
@@ -130,13 +134,6 @@ class TokenService {
 
         this._accessTokenExpiration = new Date(currentDate.getTime() + response.expires_in * 1000);
         this._refreshTokenExpiration = new Date(currentDate.getTime() + response.refresh_expires_in * 1000);
-
-        // log current time in a readable format
-        console.log('Current time:', currentDate.toISOString());
-
-        // log the timestamp of the expiration in a readable format
-        console.log('Access token expiration:', this._accessTokenExpiration.toISOString());
-        console.log('Refresh token expiration:', this._refreshTokenExpiration.toISOString());
 
         this.startAutoRefresh();
     }
