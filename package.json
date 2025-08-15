@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge Hubspace",
   "name": "@ctrlcmdshft/homebridge-hubspace",
-  "version": "2.0.1-preview6",
+  "version": "2.0.1-preview7",
   "description": "Homebridge plugin for controlling Hubspace accessories.",
   "homepage": "https://github.com/ctrlcmdshft/homebridge-hubspace#readme",
   "author": "Adam Simonicek",
