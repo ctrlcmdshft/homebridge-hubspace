@@ -17,8 +17,8 @@
     "url": "https://github.com/JakeAi/homebridge-hubspace/issues"
   },
   "engines": {
-    "node": ">=14.18.1",
-    "homebridge": ">=1.3.5"
+    "homebridge": "^1.6.0 || ^2.0.0",
+    "node": "^18.20.4 || ^20.15.1 || ^22"
   },
   "main": "dist/index.js",
   "scripts": {
