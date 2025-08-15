@@ -1,9 +1,9 @@
 {
   "displayName": "Homebridge Hubspace",
-  "name": "@ihz/homebridge-hubspace",
+  "name": "@ctrlcmdshft/homebridge-hubspace",
   "version": "2.0.0-preview5",
   "description": "Homebridge plugin for controlling Hubspace accessories.",
-  "homepage": "https://github.com/JakeAi/homebridge-hubspace#readme",
+  "homepage": "https://github.com/ctrlcmdshft/homebridge-hubspace#readme",
   "author": "Adam Simonicek",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -11,10 +11,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/JakeAi/homebridge-hubspace.git"
+    "url": "https://github.com/ctrlcmdshft/homebridge-hubspace.git"
   },
   "bugs": {
-    "url": "https://github.com/JakeAi/homebridge-hubspace/issues"
+    "url": "https://github.com/ctrlcmdshft/homebridge-hubspace/issues"
   },
   "engines": {
     "homebridge": "^1.6.0 || ^2.0.0",
