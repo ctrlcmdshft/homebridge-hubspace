@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.1] - 2026-01-26
+
+### Fixed
+- Republish to npm registry (v2.1.0 publish was incomplete)
+
 ## [2.1.0] - 2026-01-26
 
 ### Changed
