@@ -9,6 +9,7 @@ import { TokenResponse } from '../responses/token-response';
 class TokenService {
     public loginBuffer = 60;
     private _refreshInterval?: NodeJS.Timeout;
+    private _saveDebounceTimer?: NodeJS.Timeout;
     private readonly _httpClient = axios.create({ baseURL: Endpoints.ACCOUNT_BASE_URL });
 
     private _accessToken?: string;
@@ -19,6 +20,7 @@ class TokenService {
     private _password = '';
     private _authenticatingPromise?: Promise<boolean>;
     private _storage?: API;
+    private _tokensRestored = false;
 
     /**
      * Initializes {@link TokenService}
@@ -72,14 +74,24 @@ class TokenService {
         this._authenticatingPromise = (async () => {
             if (!this.isAccessTokenExpired() && !this.isRefreshTokenExpired()) return true;
             let tokenResponse: TokenResponse | undefined;
+            let usedRefreshToken = false;
             try {
                 tokenResponse = await this.getTokenFromRefreshToken();
+                if (tokenResponse) {
+                    usedRefreshToken = true;
+                    // eslint-disable-next-line no-console
+                    console.log('[Hubspace TokenService] Token refreshed successfully');
+                }
             } catch (err) {
                 this.logAuthError('Failed to refresh token', err);
             }
             if (!tokenResponse) {
                 try {
                     tokenResponse = await this.getTokenFromCredentials();
+                    if (tokenResponse) {
+                        // eslint-disable-next-line no-console
+                        console.log('[Hubspace TokenService] Authenticated with credentials');
+                    }
                 } catch (err) {
                     this.logAuthError('Failed to login with credentials', err);
                 }
@@ -88,7 +100,7 @@ class TokenService {
                 this.logAuthError('Authentication failed: Unable to obtain valid token. Please check your credentials or re-login.');
                 // Optionally, emit an event or call a callback for UI notification here
             }
-            this.setTokens(tokenResponse);
+            this.setTokens(tokenResponse, usedRefreshToken);
             return !!tokenResponse;
         })();
 
@@ -151,8 +163,9 @@ class TokenService {
     /**
      * Sets tokens to new values
      * @param response Response with tokens
+     * @param fromRefresh Whether tokens came from refresh (vs full login)
      */
-    private setTokens(response?: TokenResponse): void {
+    private setTokens(response?: TokenResponse, fromRefresh = false): void {
         if (!response) {
             this.clearTokens();
             return;
@@ -168,7 +181,7 @@ class TokenService {
 
         this.startAutoRefresh();
 
-        // Persist tokens to storage
+        // Persist tokens to storage (debounced)
         this.saveTokensToStorage();
     }
 
@@ -246,8 +259,11 @@ class TokenService {
                     this._accessToken = data.accessToken;
                     this._accessTokenExpiration = new Date(data.accessTokenExpiration);
 
-                    // eslint-disable-next-line no-console
-                    console.log('[Hubspace TokenService] Restored tokens from storage');
+                    if (!this._tokensRestored) {
+                        // eslint-disable-next-line no-console
+                        console.log('[Hubspace TokenService] Restored tokens from storage');
+                        this._tokensRestored = true;
+                    }
 
                     // Start auto-refresh if we have valid tokens
                     if (!this.isRefreshTokenExpired()) {
@@ -262,34 +278,42 @@ class TokenService {
     }
 
     /**
-     * Saves tokens to persistent storage
+     * Saves tokens to persistent storage (debounced to prevent excessive writes)
      */
     private saveTokensToStorage(): void {
         if (!this._storage || !this._refreshToken) return;
 
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const fs = require('fs');
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const path = require('path');
-            const savedTokens = this._storage.user.storagePath();
-            const tokenPath = path.join(savedTokens, '..', 'hubspace-tokens.json');
-
-            const data = {
-                username: this._username,
-                refreshToken: this._refreshToken,
-                refreshTokenExpiration: this._refreshTokenExpiration?.toISOString(),
-                accessToken: this._accessToken,
-                accessTokenExpiration: this._accessTokenExpiration?.toISOString()
-            };
-
-            fs.writeFileSync(tokenPath, JSON.stringify(data, null, 2));
-            // eslint-disable-next-line no-console
-            console.log('[Hubspace TokenService] Saved tokens to storage');
-        } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn('[Hubspace TokenService] Failed to save tokens to storage:', err);
+        // Clear any pending save
+        if (this._saveDebounceTimer) {
+            clearTimeout(this._saveDebounceTimer);
         }
+
+        // Debounce saves to prevent multiple rapid writes
+        this._saveDebounceTimer = setTimeout(() => {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const fs = require('fs');
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const path = require('path');
+                const savedTokens = this._storage!.user.storagePath();
+                const tokenPath = path.join(savedTokens, '..', 'hubspace-tokens.json');
+
+                const data = {
+                    username: this._username,
+                    refreshToken: this._refreshToken,
+                    refreshTokenExpiration: this._refreshTokenExpiration?.toISOString(),
+                    accessToken: this._accessToken,
+                    accessTokenExpiration: this._accessTokenExpiration?.toISOString()
+                };
+
+                fs.writeFileSync(tokenPath, JSON.stringify(data, null, 2));
+                // Only log on first save after restore to reduce noise
+                // Subsequent saves happen silently
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.warn('[Hubspace TokenService] Failed to save tokens to storage:', err);
+            }
+        }, 500); // Wait 500ms before saving to batch multiple rapid updates
     }
 
 }
