@@ -17,7 +17,7 @@
 </span>
 
 # About plugin
-Hubspace is a platform for range of devices sold at HomeDepot. This plugin tries to integrate as many of these devices so that you can control them from HomeKit.
+Homebridge Hubspace is a plugin that integrates Hubspace devices (sold at Home Depot) with Apple HomeKit. Control your smart ceiling fans, plugs, lights, and other Hubspace accessories directly from the Home app.
 
 # Disclaimer
 I do not own any rights to Hubspace. Any work published here is solely for my own convenience. I am not making any guarantees about the code or products referenced here.

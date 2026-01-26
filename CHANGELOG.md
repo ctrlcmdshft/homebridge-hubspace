@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.3] - 2026-01-26
+
+### Fixed
+- Updated GitHub Actions workflow to properly handle both release events and manual triggers
+- Fixed npm authentication token reference in publishing workflow
+
 ## [2.1.2] - 2026-01-26
 
 ### Fixed
