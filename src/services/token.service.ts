@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { API } from 'homebridge';
 import { Endpoints } from '../api/endpoints';
 import { TokenResponse } from '../responses/token-response';
 
@@ -6,7 +7,7 @@ import { TokenResponse } from '../responses/token-response';
  * Service for managing JWT tokens
  */
 class TokenService {
-    public loginBuffer: number = 60;
+    public loginBuffer = 60;
     private _refreshInterval?: NodeJS.Timeout;
     private readonly _httpClient = axios.create({ baseURL: Endpoints.ACCOUNT_BASE_URL });
 
@@ -14,23 +15,24 @@ class TokenService {
     private _accessTokenExpiration?: Date;
     private _refreshToken?: string;
     private _refreshTokenExpiration?: Date;
-    private _username: string = '';
-    private _password: string = '';
+    private _username = '';
+    private _password = '';
     private _authenticatingPromise?: Promise<boolean>;
-
-    /**
-     * Creates a new instance of token service
-     */
-    constructor() { }
+    private _storage?: API;
 
     /**
      * Initializes {@link TokenService}
      * @param username Account username
      * @param password Account password
+     * @param storage Homebridge storage API for persisting tokens
      */
-    public login(username: string, password: string): void {
+    public login(username: string, password: string, storage?: API): void {
         this._username = username;
         this._password = password;
+        this._storage = storage;
+
+        // Try to restore saved tokens from storage
+        this.restoreTokensFromStorage();
     }
 
     public async getToken(): Promise<string | undefined> {
@@ -69,7 +71,23 @@ class TokenService {
 
         this._authenticatingPromise = (async () => {
             if (!this.isAccessTokenExpired() && !this.isRefreshTokenExpired()) return true;
-            const tokenResponse = await this.getTokenFromRefreshToken() || await this.getTokenFromCredentials();
+            let tokenResponse: TokenResponse | undefined;
+            try {
+                tokenResponse = await this.getTokenFromRefreshToken();
+            } catch (err) {
+                this.logAuthError('Failed to refresh token', err);
+            }
+            if (!tokenResponse) {
+                try {
+                    tokenResponse = await this.getTokenFromCredentials();
+                } catch (err) {
+                    this.logAuthError('Failed to login with credentials', err);
+                }
+            }
+            if (!tokenResponse) {
+                this.logAuthError('Authentication failed: Unable to obtain valid token. Please check your credentials or re-login.');
+                // Optionally, emit an event or call a callback for UI notification here
+            }
             this.setTokens(tokenResponse);
             return !!tokenResponse;
         })();
@@ -79,6 +97,19 @@ class TokenService {
         } finally {
             this._authenticatingPromise = undefined;  // clear once finished
         }
+    }
+
+    /**
+     * Logs authentication errors and notifies user if needed
+     */
+    private logAuthError(message: string, err?: unknown): void {
+        // eslint-disable-next-line no-console
+        if (err) {
+            console.error(`[Hubspace TokenService] ${message}:`, err);
+        } else {
+            console.error(`[Hubspace TokenService] ${message}`);
+        }
+        // TODO: Optionally, emit an event or call a Homebridge notification callback here
     }
 
     private async getTokenFromRefreshToken(): Promise<TokenResponse | undefined> {
@@ -136,6 +167,9 @@ class TokenService {
         this._refreshTokenExpiration = new Date(currentDate.getTime() + response.refresh_expires_in * 1000);
 
         this.startAutoRefresh();
+
+        // Persist tokens to storage
+        this.saveTokensToStorage();
     }
 
 
@@ -151,6 +185,24 @@ class TokenService {
         if (this._refreshInterval) {
             clearInterval(this._refreshInterval);
             this._refreshInterval = undefined;
+        }
+
+        // Clear persisted tokens
+        if (this._storage) {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const fs = require('fs');
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const path = require('path');
+                const savedTokens = this._storage.user.storagePath();
+                const tokenPath = path.join(savedTokens, '..', 'hubspace-tokens.json');
+                if (fs.existsSync(tokenPath)) {
+                    fs.unlinkSync(tokenPath);
+                }
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.warn('[Hubspace TokenService] Failed to clear persisted tokens:', err);
+            }
         }
     }
 
@@ -168,6 +220,76 @@ class TokenService {
      */
     private isRefreshTokenExpired(): boolean {
         return !this._refreshTokenExpiration || this._refreshTokenExpiration < new Date();
+    }
+
+    /**
+     * Restores tokens from persistent storage if available
+     */
+    private restoreTokensFromStorage(): void {
+        if (!this._storage) return;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const fs = require('fs');
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const path = require('path');
+            const savedTokens = this._storage.user.storagePath();
+            const tokenPath = path.join(savedTokens, '..', 'hubspace-tokens.json');
+
+            if (fs.existsSync(tokenPath)) {
+                const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'));
+
+                // Only restore if tokens are for the same user and not expired
+                if (data.username === this._username) {
+                    this._refreshToken = data.refreshToken;
+                    this._refreshTokenExpiration = new Date(data.refreshTokenExpiration);
+                    this._accessToken = data.accessToken;
+                    this._accessTokenExpiration = new Date(data.accessTokenExpiration);
+
+                    // eslint-disable-next-line no-console
+                    console.log('[Hubspace TokenService] Restored tokens from storage');
+
+                    // Start auto-refresh if we have valid tokens
+                    if (!this.isRefreshTokenExpired()) {
+                        this.startAutoRefresh();
+                    }
+                }
+            }
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('[Hubspace TokenService] Failed to restore tokens from storage:', err);
+        }
+    }
+
+    /**
+     * Saves tokens to persistent storage
+     */
+    private saveTokensToStorage(): void {
+        if (!this._storage || !this._refreshToken) return;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const fs = require('fs');
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const path = require('path');
+            const savedTokens = this._storage.user.storagePath();
+            const tokenPath = path.join(savedTokens, '..', 'hubspace-tokens.json');
+
+            const data = {
+                username: this._username,
+                refreshToken: this._refreshToken,
+                refreshTokenExpiration: this._refreshTokenExpiration?.toISOString(),
+                accessToken: this._accessToken,
+                accessTokenExpiration: this._accessTokenExpiration?.toISOString()
+            };
+
+            fs.writeFileSync(tokenPath, JSON.stringify(data, null, 2));
+            // eslint-disable-next-line no-console
+            console.log('[Hubspace TokenService] Saved tokens to storage');
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('[Hubspace TokenService] Failed to save tokens to storage:', err);
+        }
     }
 
 }

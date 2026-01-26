@@ -28,8 +28,8 @@ export class HubspacePlatform implements DynamicPlatformPlugin {
             this.log.error('Configuration is invalid. Platform will not start.');
             return;
         }
-        // Init token service as singleton
-        tokenService.login(this.config.username, this.config.password);
+        // Init token service as singleton with storage API for token persistence
+        tokenService.login(this.config.username, this.config.password, this.api);
         tokenService.loginBuffer = this.config.loginBuffer;
         // Configure private services
         this._discoveryService = new DiscoveryService(this);
