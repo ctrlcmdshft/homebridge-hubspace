@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-01-26
+
+### Changed
+- **Token refresh strategy overhaul**: Completely redesigned token management to match aioafero (Home Assistant integration) approach
+  - Removed background polling timer that was checking tokens every 30 seconds
+  - Implemented pure on-demand token refresh - tokens only refresh when actually needed during API calls
+  - Eliminated "Token refreshed successfully" log spam that appeared frequently
+  - Token validation now happens lazily only when `getToken()` is called
+  - More efficient and matches the proven aioafero pattern used by Home Assistant
+
+### Removed
+- Removed `loginBuffer` configuration (no longer needed with on-demand refresh)
+- Removed background auto-refresh interval checking
+- Removed preemptive token refresh logic
+
 ## [2.0.3] - 2026-01-26
 
 ### Changed

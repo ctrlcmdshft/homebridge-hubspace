@@ -7,8 +7,7 @@ import { TokenResponse } from '../responses/token-response';
  * Service for managing JWT tokens
  */
 class TokenService {
-    public loginBuffer = 60;
-    private _refreshInterval?: NodeJS.Timeout;
+    // No background polling - refresh only on-demand like aioafero
     private _saveDebounceTimer?: NodeJS.Timeout;
     private readonly _httpClient = axios.create({ baseURL: Endpoints.ACCOUNT_BASE_URL });
 
@@ -38,8 +37,10 @@ class TokenService {
     }
 
     public async getToken(): Promise<string | undefined> {
+        // On-demand refresh - only authenticate when token is actually needed and expired
+        // This matches aioafero's approach of lazy token refresh
         if (!this.hasValidToken()) {
-            await this.authenticate();  // will deduplicate automatically now
+            await this.authenticate();
         }
 
         return this._accessToken;
@@ -49,21 +50,8 @@ class TokenService {
         return this._accessToken !== undefined && !this.isAccessTokenExpired();
     }
 
-    private startAutoRefresh(): void {
-        if (this._refreshInterval) {
-            clearInterval(this._refreshInterval);
-        }
-
-        this._refreshInterval = setInterval(async () => {
-            const bufferTime = this.loginBuffer * 1000; // minutes before expiration
-            const now = new Date().getTime();
-            const exp = this._refreshTokenExpiration?.getTime() ?? 0;
-
-            if (exp - now < bufferTime) {
-                await this.authenticate();
-            }
-        }, 30 * 1000); // check every 30 seconds
-    }
+    // Removed auto-refresh interval - using on-demand refresh like aioafero
+    // Tokens are only refreshed when getToken() is called and they're expired
 
     private async authenticate(): Promise<boolean> {
         if (this._authenticatingPromise) {
@@ -79,8 +67,8 @@ class TokenService {
                 tokenResponse = await this.getTokenFromRefreshToken();
                 if (tokenResponse) {
                     usedRefreshToken = true;
-                    // eslint-disable-next-line no-console
-                    console.log('[Hubspace TokenService] Token refreshed successfully');
+                    // Only log if verbose debugging is needed - tokens refresh silently in the background
+                    // Most users don't need to see this constantly
                 }
             } catch (err) {
                 this.logAuthError('Failed to refresh token', err);
@@ -179,8 +167,6 @@ class TokenService {
         this._accessTokenExpiration = new Date(currentDate.getTime() + response.expires_in * 1000);
         this._refreshTokenExpiration = new Date(currentDate.getTime() + response.refresh_expires_in * 1000);
 
-        this.startAutoRefresh();
-
         // Persist tokens to storage (debounced)
         this.saveTokensToStorage();
     }
@@ -194,11 +180,6 @@ class TokenService {
         this._refreshToken = undefined;
         this._accessTokenExpiration = undefined;
         this._refreshTokenExpiration = undefined;
-
-        if (this._refreshInterval) {
-            clearInterval(this._refreshInterval);
-            this._refreshInterval = undefined;
-        }
 
         // Clear persisted tokens
         if (this._storage) {
@@ -264,11 +245,7 @@ class TokenService {
                         console.log('[Hubspace TokenService] Restored tokens from storage');
                         this._tokensRestored = true;
                     }
-
-                    // Start auto-refresh if we have valid tokens
-                    if (!this.isRefreshTokenExpired()) {
-                        this.startAutoRefresh();
-                    }
+                    // No need to start auto-refresh - using on-demand refresh like aioafero
                 }
             }
         } catch (err) {
