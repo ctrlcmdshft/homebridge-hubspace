@@ -25,13 +25,45 @@
         "description": "Your Hubspace password",
         "placeholder": "Password"
       },
-      "otp": {
-        "title": "One-Time Password (Optional)",
+      "emailOtp": {
+        "title": "Email 2FA Code (Optional)",
         "type": "string",
         "required": false,
-        "description": "If 2FA/MFA is enabled, enter the 6-digit code from your authenticator app. Only needed for initial login - leave blank once authenticated.",
-        "placeholder": "123456"
+        "description": "If you receive a 2FA code via email, enter the code here. Hubspace will send this code when you login. Leave blank once authenticated.",
+        "placeholder": "Enter code from email"
+      },
+      "verboseLogging": {
+        "title": "Verbose Logging",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "Enable detailed logging for token management and authentication. Useful for troubleshooting but creates more log output."
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "type": "section",
+      "title": "Account Settings",
+      "expandable": true,
+      "expanded": true,
+      "items": [
+        "username",
+        "password",
+        {
+          "key": "emailOtp",
+          "description": "Check your email after attempting to login. Hubspace sends 2FA codes via email only."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Advanced Settings",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "verboseLogging"
+      ]
+    }
+  ]
 }

@@ -32,6 +32,40 @@ Not all features for all products are implemented. Please see the functions belo
 | [Universal Smart Wi-Fi 4-Speed Ceiling Fan](https://www.homedepot.com/p/Hampton-Bay-Universal-Smart-Wi-Fi-4-Speed-Ceiling-Fan-White-Remote-Control-For-Use-Only-With-AC-Motor-Fans-Powered-by-Hubspace-76278/315169181?) | <ul><li>Light on/off</li><li>Fan on/off</li><li>Light brightness</li><li>Fan speed</li></ul> |
 | [Defiant Smart Plug](https://www.homedepot.com/p/Defiant-15-Amp-120-Volt-Smart-Wi-Fi-Bluetooth-Plug-with-1-Outlet-Powered-by-Hubspace-HPPA11AWB/315636834) | <ul><li>Power on/off</li></ul> |
 
+# Configuration
+
+## Basic Setup
+Enter your Hubspace username and password in the plugin settings through the Homebridge UI.
+
+## Two-Factor Authentication (2FA)
+Hubspace only supports email-based two-factor authentication. When you login with your credentials, Hubspace will send a verification code to your email address.
+
+### Setting Up Email 2FA
+1. Configure your username and password in the plugin settings
+2. Save the config and restart Homebridge
+3. Check your email for the 2FA code sent by Hubspace
+4. Enter the code in the **Email 2FA Code** field in the plugin settings
+5. Save and restart Homebridge again
+6. Once authenticated successfully, you can remove the code from the settings
+
+**Note:** Email codes are sent whenever you login with credentials (not when refreshing tokens). The plugin automatically uses saved tokens to avoid sending emails on every restart, keeping your inbox cleaner
+
+## Advanced Settings
+
+### Verbose Logging
+Enable **Verbose Logging** to see detailed information about token management and authentication processes. This is useful for troubleshooting but will create more log output.
+
+When verbose logging is disabled, you'll only see important messages like:
+- Authentication failures
+- Email notification warnings (when falling back to credential login)
+- Critical errors
+
+When enabled, you'll also see:
+- Token refresh schedules and operations
+- Token expiration times
+- Storage operations
+- Session state information
+
 # Development
 There is no official documentation for Hubspace products. Under the hood they use Afero cloud as the mechanism that controls the products. Any functionality here is gained by experimenting with various functions of the devices. Afero provides simple explanation of [their APIs](https://developer.afero.io/API-DeviceEndpoints), however, this is in no way comprehensive.
 

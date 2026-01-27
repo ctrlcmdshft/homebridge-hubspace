@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.2] - 2026-01-27
+
+### Added
+- **Email 2FA Support**: Added dedicated field for email-based two-factor authentication codes
+  - Hubspace sends 2FA verification codes via email when logging in with credentials
+  - Enter the code received in your email to complete authentication
+  - Code only needed for initial login, can be removed after successful authentication
+- **Verbose Logging Toggle**: Added optional setting to control authentication and token management logging
+  - When disabled (default): Only shows critical errors and important warnings
+  - When enabled: Shows detailed token refresh schedules, expiration times, and session information
+  - Helps reduce log noise while still providing troubleshooting capability when needed
+
+### Changed
+- Removed authenticator app OTP support (Hubspace only supports email-based 2FA)
+- Reorganized configuration UI with clearer sections for account settings and advanced options
+- Updated documentation to clarify email-only 2FA support and verbose logging usage
+
+### Fixed
+- Enhanced error handling for expired/invalid refresh tokens
+  - Now properly clears invalid tokens when server reports "Session not active"
+  - Prevents repeated authentication attempts with expired tokens
+  - Provides clearer feedback when re-authentication is required
+
 ## [2.2.1] - 2026-01-26
 
 ### Fixed

@@ -18,7 +18,8 @@ class TokenService {
     private _refreshTokenExpiration?: Date;
     private _username = '';
     private _password = '';
-    private _otp?: string;
+    private _emailOtp?: string;
+    private _verboseLogging = false;
     private _authenticatingPromise?: Promise<boolean>;
     private _storage?: API;
     private _tokensRestored = false;
@@ -28,12 +29,14 @@ class TokenService {
      * @param username Account username
      * @param password Account password
      * @param storage Homebridge storage API for persisting tokens
-     * @param otp Optional one-time password for 2FA/MFA
+     * @param emailOtp Optional one-time password sent via email (Hubspace only supports email 2FA)
+     * @param verboseLogging Enable detailed logging for debugging
      */
-    public login(username: string, password: string, storage?: API, otp?: string): void {
+    public login(username: string, password: string, storage?: API, emailOtp?: string, verboseLogging = false): void {
         this._username = username;
         this._password = password;
-        this._otp = otp;
+        this._emailOtp = emailOtp;
+        this._verboseLogging = verboseLogging;
         this._storage = storage;
 
         // Try to restore saved tokens from storage
@@ -51,6 +54,16 @@ class TokenService {
 
     public hasValidToken(): boolean {
         return this._accessToken !== undefined && !this.isAccessTokenExpired();
+    }
+
+    /**
+     * Logs a message if verbose logging is enabled
+     */
+    private logVerbose(message: string, ...args: any[]): void {
+        if (this._verboseLogging) {
+            // eslint-disable-next-line no-console
+            console.log(message, ...args);
+        }
     }
 
     /**
@@ -78,14 +91,12 @@ class TokenService {
         // Only schedule if refresh token will still be valid
         if (refreshAt < refreshExpireTime) {
             this._refreshTimer = setTimeout(async () => {
-                // eslint-disable-next-line no-console
-                console.log('[Hubspace TokenService] Proactively refreshing access token');
+                this.logVerbose('[Hubspace TokenService] Proactively refreshing access token');
                 try {
                     const tokenResponse = await this.getTokenFromRefreshToken();
                     if (tokenResponse) {
                         this.setTokens(tokenResponse, true);
-                        // eslint-disable-next-line no-console
-                        console.log('[Hubspace TokenService] Token refreshed successfully');
+                        this.logVerbose('[Hubspace TokenService] Token refreshed successfully');
                     }
                 } catch (err) {
                     this.logAuthError('Proactive token refresh failed', err);
@@ -93,8 +104,7 @@ class TokenService {
             }, delayMs);
 
             const delayMinutes = Math.floor(delayMs / 60000);
-            // eslint-disable-next-line no-console
-            console.log(`[Hubspace TokenService] Scheduled token refresh in ${delayMinutes} minutes`);
+            this.logVerbose(`[Hubspace TokenService] Scheduled token refresh in ${delayMinutes} minutes`);
         }
     }
 
@@ -110,19 +120,16 @@ class TokenService {
             let usedRefreshToken = false;
             
             // Log token state before attempting refresh
-            // eslint-disable-next-line no-console
-            console.log('[Hubspace TokenService] Token state - Access expired:', this.isAccessTokenExpired(), 
+            this.logVerbose('[Hubspace TokenService] Token state - Access expired:', this.isAccessTokenExpired(), 
                         'Refresh expired:', this.isRefreshTokenExpired());
             
             try {
                 tokenResponse = await this.getTokenFromRefreshToken();
                 if (tokenResponse) {
                     usedRefreshToken = true;
-                    // eslint-disable-next-line no-console
-                    console.log('[Hubspace TokenService] Successfully refreshed token (no new login email)');
+                    this.logVerbose('[Hubspace TokenService] Successfully refreshed token (no new login email)');
                 } else {
-                    // eslint-disable-next-line no-console
-                    console.log('[Hubspace TokenService] Refresh token request returned no token');
+                    this.logVerbose('[Hubspace TokenService] Refresh token request returned no token');
                 }
             } catch (err) {
                 this.logAuthError('Failed to refresh token', err);
@@ -133,8 +140,7 @@ class TokenService {
                 try {
                     tokenResponse = await this.getTokenFromCredentials();
                     if (tokenResponse) {
-                        // eslint-disable-next-line no-console
-                        console.log('[Hubspace TokenService] Authenticated with credentials');
+                        this.logVerbose('[Hubspace TokenService] Authenticated with credentials');
                     }
                 } catch (err) {
                     this.logAuthError('Failed to login with credentials', err);
@@ -171,14 +177,14 @@ class TokenService {
     private async getTokenFromRefreshToken(): Promise<TokenResponse | undefined> {
         // If refresh token is expired then don't even try...
         if (this.isRefreshTokenExpired()) {
-            // eslint-disable-next-line no-console
-            console.log('[Hubspace TokenService] Refresh token is expired, cannot use it');
+            this.logVerbose('[Hubspace TokenService] Refresh token is expired, cannot use it');
+            // Clear expired tokens to force fresh login
+            this.clearTokens();
             return undefined;
         }
         
         if (!this._refreshToken) {
-            // eslint-disable-next-line no-console
-            console.log('[Hubspace TokenService] No refresh token available');
+            this.logVerbose('[Hubspace TokenService] No refresh token available');
             return undefined;
         }
 
@@ -191,9 +197,17 @@ class TokenService {
         try {
             const response = await this._httpClient.post('/protocol/openid-connect/token', params);
             return response.status === 200 ? response.data : undefined;
-        } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('[Hubspace TokenService] Refresh token request failed:', error);
+        } catch (error: any) {
+            // Check if the error is due to inactive session or invalid grant
+            if (error?.response?.data?.error === 'invalid_grant') {
+                // eslint-disable-next-line no-console
+                console.warn('[Hubspace TokenService] Server rejected refresh token (session inactive or token revoked)');
+                // Clear invalid tokens to force fresh login
+                this.clearTokens();
+            } else {
+                // eslint-disable-next-line no-console
+                console.error('[Hubspace TokenService] Refresh token request failed:', error);
+            }
             return undefined;
         }
     }
@@ -206,9 +220,9 @@ class TokenService {
         params.append('username', this._username);
         params.append('password', this._password);
         
-        // Include OTP if provided (for 2FA/MFA)
-        if (this._otp) {
-            params.append('totp', this._otp);
+        // Include email OTP if provided (Hubspace only supports email-based 2FA)
+        if (this._emailOtp) {
+            params.append('totp', this._emailOtp);
         }
 
         try {
@@ -243,8 +257,7 @@ class TokenService {
         // Log token expiration times for debugging
         const accessExpireMinutes = Math.floor(response.expires_in / 60);
         const refreshExpireMinutes = Math.floor(response.refresh_expires_in / 60);
-        // eslint-disable-next-line no-console
-        console.log(`[Hubspace TokenService] Token expiration: Access=${accessExpireMinutes}m, Refresh=${refreshExpireMinutes}m`);
+        this.logVerbose(`[Hubspace TokenService] Token expiration: Access=${accessExpireMinutes}m, Refresh=${refreshExpireMinutes}m`);
 
         // Persist tokens to storage (debounced)
         this.saveTokensToStorage();
@@ -330,15 +343,13 @@ class TokenService {
 
                     if (!this._tokensRestored) {
                         const refreshMinutesLeft = Math.floor((this._refreshTokenExpiration.getTime() - Date.now()) / 60000);
-                        // eslint-disable-next-line no-console
-                        console.log(`[Hubspace TokenService] Restored tokens from storage (Refresh token valid for ${refreshMinutesLeft} more minutes)`);
+                        this.logVerbose(`[Hubspace TokenService] Restored tokens from storage (Refresh token valid for ${refreshMinutesLeft} more minutes)`);
                         this._tokensRestored = true;
                     }
                     // Schedule proactive refresh to keep refresh token chain alive
                     this.scheduleTokenRefresh();
                 } else {
-                    // eslint-disable-next-line no-console
-                    console.log('[Hubspace TokenService] Tokens in storage are for different user, ignoring');
+                    this.logVerbose('[Hubspace TokenService] Tokens in storage are for different user, ignoring');
                 }
             }
         } catch (err) {
