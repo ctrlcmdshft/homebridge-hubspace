@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1] - 2026-01-26
+
+### Fixed
+- Fixed token refresh chain not being maintained after restoring tokens from storage
+  - Now schedules proactive token refresh when restoring saved tokens on Homebridge restart
+  - Prevents refresh token expiration during Homebridge downtime (no more login notification emails)
+- Enhanced token refresh logging to diagnose authentication failures
+  - Added detailed logging for token state (expired vs valid)
+  - Shows why credential fallback is triggered (missing token, expired token, API failure)
+  - Logs refresh token validity duration when restoring from storage
+  - Warns when falling back to credential login (which triggers email notifications)
+
 ## [2.2.0] - 2026-01-26
 
 ### Added

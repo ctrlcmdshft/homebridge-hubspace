@@ -108,17 +108,28 @@ class TokenService {
             if (!this.isAccessTokenExpired() && !this.isRefreshTokenExpired()) return true;
             let tokenResponse: TokenResponse | undefined;
             let usedRefreshToken = false;
+            
+            // Log token state before attempting refresh
+            // eslint-disable-next-line no-console
+            console.log('[Hubspace TokenService] Token state - Access expired:', this.isAccessTokenExpired(), 
+                        'Refresh expired:', this.isRefreshTokenExpired());
+            
             try {
                 tokenResponse = await this.getTokenFromRefreshToken();
                 if (tokenResponse) {
                     usedRefreshToken = true;
-                    // Only log if verbose debugging is needed - tokens refresh silently in the background
-                    // Most users don't need to see this constantly
+                    // eslint-disable-next-line no-console
+                    console.log('[Hubspace TokenService] Successfully refreshed token (no new login email)');
+                } else {
+                    // eslint-disable-next-line no-console
+                    console.log('[Hubspace TokenService] Refresh token request returned no token');
                 }
             } catch (err) {
                 this.logAuthError('Failed to refresh token', err);
             }
             if (!tokenResponse) {
+                // eslint-disable-next-line no-console
+                console.warn('[Hubspace TokenService] ⚠️  Falling back to credential login - THIS WILL SEND EMAIL');
                 try {
                     tokenResponse = await this.getTokenFromCredentials();
                     if (tokenResponse) {
@@ -159,7 +170,17 @@ class TokenService {
 
     private async getTokenFromRefreshToken(): Promise<TokenResponse | undefined> {
         // If refresh token is expired then don't even try...
-        if (this.isRefreshTokenExpired()) return undefined;
+        if (this.isRefreshTokenExpired()) {
+            // eslint-disable-next-line no-console
+            console.log('[Hubspace TokenService] Refresh token is expired, cannot use it');
+            return undefined;
+        }
+        
+        if (!this._refreshToken) {
+            // eslint-disable-next-line no-console
+            console.log('[Hubspace TokenService] No refresh token available');
+            return undefined;
+        }
 
         const params = new URLSearchParams();
 
@@ -170,7 +191,9 @@ class TokenService {
         try {
             const response = await this._httpClient.post('/protocol/openid-connect/token', params);
             return response.status === 200 ? response.data : undefined;
-        } catch {
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('[Hubspace TokenService] Refresh token request failed:', error);
             return undefined;
         }
     }
@@ -306,11 +329,16 @@ class TokenService {
                     this._accessTokenExpiration = new Date(data.accessTokenExpiration);
 
                     if (!this._tokensRestored) {
+                        const refreshMinutesLeft = Math.floor((this._refreshTokenExpiration.getTime() - Date.now()) / 60000);
                         // eslint-disable-next-line no-console
-                        console.log('[Hubspace TokenService] Restored tokens from storage');
+                        console.log(`[Hubspace TokenService] Restored tokens from storage (Refresh token valid for ${refreshMinutesLeft} more minutes)`);
                         this._tokensRestored = true;
                     }
-                    // No need to start auto-refresh - using on-demand refresh like aioafero
+                    // Schedule proactive refresh to keep refresh token chain alive
+                    this.scheduleTokenRefresh();
+                } else {
+                    // eslint-disable-next-line no-console
+                    console.log('[Hubspace TokenService] Tokens in storage are for different user, ignoring');
                 }
             }
         } catch (err) {
