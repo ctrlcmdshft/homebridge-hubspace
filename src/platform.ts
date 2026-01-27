@@ -30,9 +30,9 @@ export class HubspacePlatform implements DynamicPlatformPlugin {
         }
         // Init token service as singleton with storage API for token persistence
         tokenService.login(
-            this.config.username, 
-            this.config.password, 
-            this.api, 
+            this.config.username,
+            this.config.password,
+            this.api,
             this.config.emailOtp,
             this.config.verboseLogging
         );
