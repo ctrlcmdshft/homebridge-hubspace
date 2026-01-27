@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-01-26
+
+### Added
+- **Proactive token refresh**: Implemented automatic token refresh at 80% of token lifetime to maintain valid refresh token chain indefinitely
+  - Prevents token expiration during periods of inactivity (no more login emails after 3+ hours of no device usage)
+  - Maintains continuous refresh token chain like iOS app and Home Assistant integration
+  - Schedules refresh automatically based on token expiration times
+  - Logs token expiration details (access and refresh token lifetimes in minutes)
+- **2FA/MFA Support**: Added optional One-Time Password (OTP) field for accounts with two-factor authentication enabled
+  - OTP only required for initial login with credentials
+  - Token refresh works without OTP, maintaining seamless background authentication
+  - Optional configuration field - leave blank if 2FA is not enabled
+
+### Changed
+- Token refresh strategy now uses proactive scheduling instead of on-demand refresh
+- Improved token expiration logging to show both access and refresh token lifetimes
+- Enhanced authentication flow to support optional TOTP parameter
+
+### Fixed
+- Fixed issue where refresh tokens would expire after 3 hours of inactivity, causing repeated login emails
+- Removed GitHub Actions auto-trigger on release events (now manual-only via workflow_dispatch)
+- Simplified npm publishing workflow by removing unnecessary NPM_TOKEN authentication
+
 ## [2.1.3] - 2026-01-26
 
 ### Fixed

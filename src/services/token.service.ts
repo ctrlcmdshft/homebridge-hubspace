@@ -7,8 +7,9 @@ import { TokenResponse } from '../responses/token-response';
  * Service for managing JWT tokens
  */
 class TokenService {
-    // No background polling - refresh only on-demand like aioafero
+    // Proactive token refresh to maintain valid refresh token chain
     private _saveDebounceTimer?: NodeJS.Timeout;
+    private _refreshTimer?: NodeJS.Timeout;
     private readonly _httpClient = axios.create({ baseURL: Endpoints.ACCOUNT_BASE_URL });
 
     private _accessToken?: string;
@@ -17,6 +18,7 @@ class TokenService {
     private _refreshTokenExpiration?: Date;
     private _username = '';
     private _password = '';
+    private _otp?: string;
     private _authenticatingPromise?: Promise<boolean>;
     private _storage?: API;
     private _tokensRestored = false;
@@ -26,10 +28,12 @@ class TokenService {
      * @param username Account username
      * @param password Account password
      * @param storage Homebridge storage API for persisting tokens
+     * @param otp Optional one-time password for 2FA/MFA
      */
-    public login(username: string, password: string, storage?: API): void {
+    public login(username: string, password: string, storage?: API, otp?: string): void {
         this._username = username;
         this._password = password;
+        this._otp = otp;
         this._storage = storage;
 
         // Try to restore saved tokens from storage
@@ -37,8 +41,7 @@ class TokenService {
     }
 
     public async getToken(): Promise<string | undefined> {
-        // On-demand refresh - only authenticate when token is actually needed and expired
-        // This matches aioafero's approach of lazy token refresh
+        // Proactive refresh - maintain valid token like iOS app
         if (!this.hasValidToken()) {
             await this.authenticate();
         }
@@ -50,8 +53,50 @@ class TokenService {
         return this._accessToken !== undefined && !this.isAccessTokenExpired();
     }
 
-    // Removed auto-refresh interval - using on-demand refresh like aioafero
-    // Tokens are only refreshed when getToken() is called and they're expired
+    /**
+     * Schedules proactive token refresh to keep refresh token chain alive
+     * Refreshes access token before it expires (while refresh token is still valid)
+     */
+    private scheduleTokenRefresh(): void {
+        // Clear any existing timer
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = undefined;
+        }
+
+        if (!this._accessTokenExpiration || !this._refreshTokenExpiration) return;
+
+        const now = new Date().getTime();
+        const accessExpireTime = this._accessTokenExpiration.getTime();
+        const refreshExpireTime = this._refreshTokenExpiration.getTime();
+
+        // Refresh at 80% of token lifetime (more conservative than 5min buffer)
+        const tokenLifetimeMs = accessExpireTime - now;
+        const refreshAt = now + (tokenLifetimeMs * 0.8);
+        const delayMs = Math.max(0, refreshAt - now);
+
+        // Only schedule if refresh token will still be valid
+        if (refreshAt < refreshExpireTime) {
+            this._refreshTimer = setTimeout(async () => {
+                // eslint-disable-next-line no-console
+                console.log('[Hubspace TokenService] Proactively refreshing access token');
+                try {
+                    const tokenResponse = await this.getTokenFromRefreshToken();
+                    if (tokenResponse) {
+                        this.setTokens(tokenResponse, true);
+                        // eslint-disable-next-line no-console
+                        console.log('[Hubspace TokenService] Token refreshed successfully');
+                    }
+                } catch (err) {
+                    this.logAuthError('Proactive token refresh failed', err);
+                }
+            }, delayMs);
+
+            const delayMinutes = Math.floor(delayMs / 60000);
+            // eslint-disable-next-line no-console
+            console.log(`[Hubspace TokenService] Scheduled token refresh in ${delayMinutes} minutes`);
+        }
+    }
 
     private async authenticate(): Promise<boolean> {
         if (this._authenticatingPromise) {
@@ -137,6 +182,11 @@ class TokenService {
         params.append('client_id', 'hubspace_android');
         params.append('username', this._username);
         params.append('password', this._password);
+        
+        // Include OTP if provided (for 2FA/MFA)
+        if (this._otp) {
+            params.append('totp', this._otp);
+        }
 
         try {
             const response = await this._httpClient.post('/protocol/openid-connect/token', params);
@@ -167,8 +217,17 @@ class TokenService {
         this._accessTokenExpiration = new Date(currentDate.getTime() + response.expires_in * 1000);
         this._refreshTokenExpiration = new Date(currentDate.getTime() + response.refresh_expires_in * 1000);
 
+        // Log token expiration times for debugging
+        const accessExpireMinutes = Math.floor(response.expires_in / 60);
+        const refreshExpireMinutes = Math.floor(response.refresh_expires_in / 60);
+        // eslint-disable-next-line no-console
+        console.log(`[Hubspace TokenService] Token expiration: Access=${accessExpireMinutes}m, Refresh=${refreshExpireMinutes}m`);
+
         // Persist tokens to storage (debounced)
         this.saveTokensToStorage();
+
+        // Schedule proactive refresh to maintain token chain like iOS app
+        this.scheduleTokenRefresh();
     }
 
 
@@ -176,6 +235,12 @@ class TokenService {
      * Clears stored tokens
      */
     private clearTokens(): void {
+        // Clear refresh timer
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = undefined;
+        }
+
         this._accessToken = undefined;
         this._refreshToken = undefined;
         this._accessTokenExpiration = undefined;

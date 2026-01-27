@@ -1,8 +1,6 @@
 name: Publish NPM package
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -21,6 +19,4 @@ jobs:
       - name: Build plugin
         run: npm run build
       - name: Publish plugin
-        run: npm publish --tag ${{ github.event.release.prerelease && 'preview' || 'latest' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish

@@ -24,6 +24,13 @@
         "required": true,
         "description": "Your Hubspace password",
         "placeholder": "Password"
+      },
+      "otp": {
+        "title": "One-Time Password (Optional)",
+        "type": "string",
+        "required": false,
+        "description": "If 2FA/MFA is enabled, enter the 6-digit code from your authenticator app. Only needed for initial login - leave blank once authenticated.",
+        "placeholder": "123456"
       }
     }
   }
