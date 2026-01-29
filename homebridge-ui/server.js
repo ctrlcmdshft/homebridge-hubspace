@@ -6,6 +6,14 @@ const axios = require('axios');
  * This creates a web interface accessible from Homebridge Config UI X
  */
 class PluginUiServer extends HomebridgePluginUiServer {
+        // Compatibility: get plugin config regardless of Homebridge UI version
+        async getConfigCompat() {
+            if (typeof this.getPluginConfig === 'function') {
+                return await this.getPluginConfig();
+            }
+            // fallback for older plugin-ui-utils
+            return await this.request('/getConfig');
+        }
     constructor() {
         super();
 
@@ -47,7 +55,7 @@ class PluginUiServer extends HomebridgePluginUiServer {
 
             if (response.status === 200) {
                 // Success - no 2FA required
-                const currentConfig = await this.getPluginConfig();
+                const currentConfig = await this.getConfigCompat();
                 const pluginConfig = Array.isArray(currentConfig) && currentConfig.length > 0
                     ? currentConfig[0]
                     : { platform: 'Hubspace' };
@@ -118,7 +126,7 @@ class PluginUiServer extends HomebridgePluginUiServer {
 
             if (response.status === 200) {
                 // Update config with credentials (but not OTP - we don't need to store it)
-                const currentConfig = await this.getPluginConfig();
+                const currentConfig = await this.getConfigCompat();
                 const pluginConfig = Array.isArray(currentConfig) && currentConfig.length > 0
                     ? currentConfig[0]
                     : { platform: 'Hubspace' };
@@ -152,7 +160,7 @@ class PluginUiServer extends HomebridgePluginUiServer {
    * Get current authentication status
    */
     async handleAuthStatus() {
-        const currentConfig = await this.getPluginConfig();
+        const currentConfig = await this.getConfigCompat();
         const pluginConfig = Array.isArray(currentConfig) && currentConfig.length > 0
             ? currentConfig[0]
             : { platform: 'Hubspace' };
