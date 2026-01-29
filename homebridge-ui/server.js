@@ -6,6 +6,31 @@ const axios = require('axios');
  * This creates a web interface accessible from Homebridge Config UI X
  */
 class PluginUiServer extends HomebridgePluginUiServer {
+        // Compatibility: update plugin config regardless of Homebridge UI version
+        async updateConfigCompat(newConfig) {
+            if (typeof this.updatePluginConfig === 'function') {
+                return await this.updatePluginConfig(newConfig);
+            }
+            // fallback: write config.json directly
+            const fs = require('fs');
+            const path = require('path');
+            const configPath = process.env.UIX_CONFIG_PATH || process.env.HOMEBRIDGE_CONFIG_UI_X_CONFIG_PATH || process.env.HOMEBRIDGE_CONFIG_PATH || path.join(process.env.HOME || process.env.USERPROFILE || '.', '.homebridge', 'config.json');
+            try {
+                const configRaw = fs.readFileSync(configPath, 'utf8');
+                const config = JSON.parse(configRaw);
+                // Replace or add the Hubspace platform config
+                if (!Array.isArray(config.platforms)) config.platforms = [];
+                const idx = config.platforms.findIndex(x => x.platform === 'Hubspace');
+                if (idx >= 0) {
+                    config.platforms[idx] = newConfig[0];
+                } else {
+                    config.platforms.push(newConfig[0]);
+                }
+                fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+            } catch (e) {
+                throw new Error('Failed to update config.json: ' + e.message);
+            }
+        }
     // Compatibility: get plugin config regardless of Homebridge UI version
     async getConfigCompat() {
         if (typeof this.getPluginConfig === 'function') {
@@ -80,7 +105,7 @@ class PluginUiServer extends HomebridgePluginUiServer {
                 // Clear any old OTP
                 delete pluginConfig.emailOtp;
 
-                await this.updatePluginConfig([pluginConfig]);
+                await this.updateConfigCompat([pluginConfig]);
 
                 return {
                     success: true,
@@ -151,7 +176,7 @@ class PluginUiServer extends HomebridgePluginUiServer {
                 // Don't store OTP - tokens will be saved by the plugin
                 delete pluginConfig.emailOtp;
 
-                await this.updatePluginConfig([pluginConfig]);
+                await this.updateConfigCompat([pluginConfig]);
 
                 return {
                     success: true,
