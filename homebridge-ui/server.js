@@ -6,14 +6,29 @@ const axios = require('axios');
  * This creates a web interface accessible from Homebridge Config UI X
  */
 class PluginUiServer extends HomebridgePluginUiServer {
-        // Compatibility: get plugin config regardless of Homebridge UI version
-        async getConfigCompat() {
-            if (typeof this.getPluginConfig === 'function') {
-                return await this.getPluginConfig();
-            }
-            // fallback for older plugin-ui-utils
-            return await this.request('/getConfig');
+    // Compatibility: get plugin config regardless of Homebridge UI version
+    async getConfigCompat() {
+        if (typeof this.getPluginConfig === 'function') {
+            return await this.getPluginConfig();
         }
+        // fallback: read config.json directly
+        const fs = require('fs');
+        const path = require('path');
+        // Try to find the config path from environment or default
+        const configPath = process.env.UIX_CONFIG_PATH || process.env.HOMEBRIDGE_CONFIG_UI_X_CONFIG_PATH || process.env.HOMEBRIDGE_CONFIG_PATH || path.join(process.env.HOME || process.env.USERPROFILE || '.', '.homebridge', 'config.json');
+        try {
+            const configRaw = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(configRaw);
+            // Find the Hubspace platform config
+            if (Array.isArray(config.platforms)) {
+                return config.platforms.filter(x => x.platform === 'Hubspace');
+            }
+            return [];
+        } catch (e) {
+            return [];
+        }
+    }
+
     constructor() {
         super();
 
