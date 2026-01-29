@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-01-29
+
+### Added
+- **Interactive Login Wizard**: New custom UI for easy authentication setup
+  - Step-by-step guided authentication process
+  - Real-time validation and error handling
+  - Automatic 2FA code handling via email
+  - No need to manually edit config files
+  - Accessible through Homebridge Config UI X
+- **Comprehensive Authentication Documentation**: Added detailed AUTHENTICATION.md guide
+  - Interactive wizard instructions
+  - Manual configuration guide
+  - Token management explanation
+  - Troubleshooting section
+  - Security best practices
+  
+### Enhanced
+- **Improved Config Schema**: Updated layout with help text and better organization
+- **README Updates**: Enhanced configuration section with both authentication options
+
+### Technical
+- Added `@homebridge/plugin-ui-utils` dependency for custom UI server
+- Created custom UI server (`homebridge-ui/server.js`) with authentication endpoints
+- Created interactive HTML interface (`homebridge-ui/public/index.html`)
+
 ## [2.2.2] - 2026-01-27
 
 ### Added

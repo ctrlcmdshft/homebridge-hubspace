@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge Hubspace",
   "name": "@ctrlcmdshft/homebridge-hubspace",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "Homebridge plugin for controlling Hubspace accessories.",
   "homepage": "https://github.com/ctrlcmdshft/homebridge-hubspace#readme",
   "author": "Adam Simonicek",
@@ -33,6 +33,7 @@
     "hubspace"
   ],
   "dependencies": {
+    "@homebridge/plugin-ui-utils": "^1.0.3",
     "axios": "^1.3.2",
     "color-convert": "^2.0.1"
   },

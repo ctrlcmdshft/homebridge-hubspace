@@ -2,6 +2,7 @@
   "pluginAlias": "Hubspace",
   "pluginType": "platform",
   "singular": true,
+  "customUi": true,
   "schema": {
     "type": "object",
     "properties": {
@@ -43,16 +44,30 @@
   },
   "layout": [
     {
+      "type": "help",
+      "helpvalue": "<div class='alert alert-info'><strong>Easy Setup:</strong> Click the button below to use the interactive login wizard, or manually configure credentials in the fields below.</div>"
+    },
+    {
+      "key": "username",
+      "type": "string",
+      "notitle": true,
+      "placeholder": "Or manually enter username here"
+    },
+    {
+      "key": "password", 
+      "type": "string",
+      "notitle": true,
+      "placeholder": "Or manually enter password here"
+    },
+    {
       "type": "section",
-      "title": "Account Settings",
+      "title": "Manual 2FA Setup (Optional)",
       "expandable": true,
-      "expanded": true,
+      "expanded": false,
       "items": [
-        "username",
-        "password",
         {
           "key": "emailOtp",
-          "description": "Check your email after attempting to login. Hubspace sends 2FA codes via email only."
+          "description": "Only needed if you prefer manual config. Check your email after attempting to login - Hubspace sends 2FA codes via email only."
         }
       ]
     },

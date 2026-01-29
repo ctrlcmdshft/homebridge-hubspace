@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hubspace Authentication</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #555;
+    }
+    
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      width: 100%;
+    }
+    
+    button:hover {
+      background: #45a049;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .alert {
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    
+    .alert-info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    
+    .alert-success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    
+    .alert-error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      position: relative;
+    }
+    
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      padding: 10px;
+    }
+    
+    .step::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #ddd;
+      z-index: -1;
+    }
+    
+    .step:first-child::before {
+      left: 50%;
+    }
+    
+    .step:last-child::before {
+      right: 50%;
+    }
+    
+    .step-number {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      border-radius: 50%;
+      background: #ddd;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .step.active .step-number {
+      background: #4CAF50;
+      color: white;
+    }
+    
+    .step.completed .step-number {
+      background: #4CAF50;
+      color: white;
+    }
+    
+    .step-label {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🏠 Hubspace Authentication</h2>
+    
+    <div class="step-indicator">
+      <div class="step active" id="step1-indicator">
+        <div class="step-number">1</div>
+        <div class="step-label">Login</div>
+      </div>
+      <div class="step" id="step2-indicator">
+        <div class="step-number">2</div>
+        <div class="step-label">Verify Code</div>
+      </div>
+      <div class="step" id="step3-indicator">
+        <div class="step-number">3</div>
+        <div class="step-label">Complete</div>
+      </div>
+    </div>
+    
+    <div id="message-container"></div>
+    
+    <!-- Step 1: Initial Login -->
+    <div id="login-form">
+      <div class="alert alert-info">
+        Enter your Hubspace credentials. If you have 2FA enabled, you'll receive a verification code via email.
+      </div>
+      
+      <div class="form-group">
+        <label for="username">Username / Email</label>
+        <input type="text" id="username" placeholder="your-email@example.com" autocomplete="username">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+      </div>
+      
+      <button onclick="handleLogin()" id="login-btn">Continue</button>
+    </div>
+    
+    <!-- Step 2: OTP Verification -->
+    <div id="otp-form" class="hidden">
+      <div class="alert alert-info">
+        📧 A verification code has been sent to your email. Please enter the code below.
+      </div>
+      
+      <div class="form-group">
+        <label for="otp">Verification Code</label>
+        <input type="text" id="otp" placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric">
+      </div>
+      
+      <button onclick="handleVerifyOtp()" id="verify-btn">Verify & Complete Setup</button>
+      <button onclick="goBack()" style="background: #666; margin-top: 10px;">Go Back</button>
+    </div>
+    
+    <!-- Step 3: Success -->
+    <div id="success-form" class="hidden">
+      <div class="alert alert-success">
+        ✅ Authentication successful! Your Hubspace account is now connected.
+      </div>
+      
+      <p>You can close this window. Homebridge will restart automatically with your new configuration.</p>
+    </div>
+  </div>
+
+  <script>
+    let currentUsername = '';
+    let currentPassword = '';
+
+    // Check authentication status on load
+    window.addEventListener('load', async () => {
+      try {
+        const status = await homebridge.request('/auth-status');
+        if (status.configured) {
+          document.getElementById('username').value = status.username;
+        }
+      } catch (error) {
+        console.error('Failed to load auth status:', error);
+      }
+    });
+
+    async function handleLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!username || !password) {
+        showMessage('Please enter both username and password', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Authenticating...';
+      
+      try {
+        const result = await homebridge.request('/login', { username, password });
+        
+        if (result.requires2FA) {
+          // Store credentials for OTP step
+          currentUsername = username;
+          currentPassword = password;
+          
+          // Move to OTP step
+          setStep(2);
+          showMessage(result.message, 'info');
+          document.getElementById('otp').focus();
+        } else {
+          // Success without 2FA
+          setStep(3);
+          showMessage(result.message, 'success');
+          
+          // Restart Homebridge after a short delay
+          setTimeout(() => {
+            homebridge.toast.success('Restarting Homebridge...', 'Authentication Complete');
+            homebridge.request('/restart');
+          }, 2000);
+        }
+      } catch (error) {
+        showMessage(error.message || 'Authentication failed. Please check your credentials.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Continue';
+      }
+    }
+
+    async function handleVerifyOtp() {
+      const otp = document.getElementById('otp').value.trim();
+      
+      if (!otp || otp.length !== 6) {
+        showMessage('Please enter a valid 6-digit verification code', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('verify-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Verifying...';
+      
+      try {
+        const result = await homebridge.request('/verify-otp', {
+          username: currentUsername,
+          password: currentPassword,
+          otp: otp
+        });
+        
+        if (result.success) {
+          setStep(3);
+          showMessage(result.message, 'success');
+          
+          // Restart Homebridge after a short delay
+          setTimeout(() => {
+            homebridge.toast.success('Restarting Homebridge...', 'Authentication Complete');
+            homebridge.request('/restart');
+          }, 2000);
+        }
+      } catch (error) {
+        showMessage(error.message || 'Verification failed. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify & Complete Setup';
+      }
+    }
+
+    function goBack() {
+      setStep(1);
+      clearMessage();
+    }
+
+    function setStep(stepNumber) {
+      // Hide all forms
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('otp-form').classList.add('hidden');
+      document.getElementById('success-form').classList.add('hidden');
+      
+      // Update step indicators
+      for (let i = 1; i <= 3; i++) {
+        const indicator = document.getElementById(`step${i}-indicator`);
+        indicator.classList.remove('active', 'completed');
+        
+        if (i < stepNumber) {
+          indicator.classList.add('completed');
+        } else if (i === stepNumber) {
+          indicator.classList.add('active');
+        }
+      }
+      
+      // Show appropriate form
+      if (stepNumber === 1) {
+        document.getElementById('login-form').classList.remove('hidden');
+      } else if (stepNumber === 2) {
+        document.getElementById('otp-form').classList.remove('hidden');
+      } else if (stepNumber === 3) {
+        document.getElementById('success-form').classList.remove('hidden');
+      }
+    }
+
+    function showMessage(message, type) {
+      const container = document.getElementById('message-container');
+      container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    }
+
+    function clearMessage() {
+      document.getElementById('message-container').innerHTML = '';
+    }
+
+    // Handle Enter key
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        if (!document.getElementById('login-form').classList.contains('hidden')) {
+          handleLogin();
+        } else if (!document.getElementById('otp-form').classList.contains('hidden')) {
+          handleVerifyOtp();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

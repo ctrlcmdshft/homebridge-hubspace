@@ -34,13 +34,40 @@ Not all features for all products are implemented. Please see the functions belo
 
 # Configuration
 
+## Authentication Options
+
+You have **two ways** to authenticate with Hubspace:
+
+### Option 1: Interactive Login Wizard (Recommended) 🎯
+
+The easiest way! Click the **"Setup Account"** button in the plugin settings to launch an interactive authentication wizard that:
+- Guides you through the login process step-by-step
+- Handles 2FA codes automatically
+- Provides real-time validation and clear error messages
+- No need to edit config files manually
+
+**[→ See detailed interactive auth guide](./AUTHENTICATION.md#option-1-interactive-login-wizard-recommended-)**
+
+### Option 2: Manual Configuration 📝
+
+Prefer editing config files? You can manually configure your credentials:
+
 ## Basic Setup
 Enter your Hubspace username and password in the plugin settings through the Homebridge UI.
+
+**[→ See manual configuration guide](./AUTHENTICATION.md#option-2-manual-configuration-)**
 
 ## Two-Factor Authentication (2FA)
 Hubspace only supports email-based two-factor authentication. When you login with your credentials, Hubspace will send a verification code to your email address.
 
-### Setting Up Email 2FA
+### Using the Interactive Wizard (Easy)
+1. Click "Setup Account" in plugin settings
+2. Enter username and password
+3. Check your email for the code
+4. Enter the code in the wizard
+5. Done! ✅
+
+### Manual 2FA Setup
 1. Configure your username and password in the plugin settings
 2. Save the config and restart Homebridge
 3. Check your email for the 2FA code sent by Hubspace
@@ -48,7 +75,9 @@ Hubspace only supports email-based two-factor authentication. When you login wit
 5. Save and restart Homebridge again
 6. Once authenticated successfully, you can remove the code from the settings
 
-**Note:** Email codes are sent whenever you login with credentials (not when refreshing tokens). The plugin automatically uses saved tokens to avoid sending emails on every restart, keeping your inbox cleaner
+**Note:** Email codes are sent whenever you login with credentials (not when refreshing tokens). The plugin automatically uses saved tokens to avoid sending emails on every restart, keeping your inbox cleaner.
+
+**[→ Full authentication documentation](./AUTHENTICATION.md)**
 
 ## Advanced Settings
 
