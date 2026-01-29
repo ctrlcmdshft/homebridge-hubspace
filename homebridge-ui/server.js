@@ -47,8 +47,10 @@ class PluginUiServer extends HomebridgePluginUiServer {
 
             if (response.status === 200) {
                 // Success - no 2FA required
-                const config = await this.getCachedAccessories();
-                const pluginConfig = config.find(x => x.platform === 'Hubspace') || {};
+                const currentConfig = await this.getPluginConfig();
+                const pluginConfig = Array.isArray(currentConfig) && currentConfig.length > 0
+                    ? currentConfig[0]
+                    : { platform: 'Hubspace' };
 
                 pluginConfig.username = username;
                 pluginConfig.password = password;
@@ -114,8 +116,10 @@ class PluginUiServer extends HomebridgePluginUiServer {
                 params
             );
 
-            if (response.status === 200) {
-                // Update config with credentials (but not OTP - we don't need to store it)
+            if (responsurrentConfig = await this.getPluginConfig();
+                const pluginConfig = Array.isArray(currentConfig) && currentConfig.length > 0
+                    ? currentConfig[0]
+                    : { platform: 'Hubspace' re it)
                 const config = await this.getCachedAccessories();
                 const pluginConfig = config.find(x => x.platform === 'Hubspace') || {};
 
@@ -146,8 +150,10 @@ class PluginUiServer extends HomebridgePluginUiServer {
 
     /**
    * Get current authentication status
-   */
-    async handleAuthStatus() {
+   */urrentConfig = await this.getPluginConfig();
+        const pluginConfig = Array.isArray(currentConfig) && currentConfig.length > 0
+            ? currentConfig[0]
+            :
         const config = await this.getCachedAccessories();
         const pluginConfig = config.find(x => x.platform === 'Hubspace') || {};
 

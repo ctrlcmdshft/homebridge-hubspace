@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.1] - 2026-01-29
+
+### Fixed
+- Fixed custom UI server authentication error (`getCachedAccessories is not a function`)
+- Corrected API method calls to use `getPluginConfig()` instead of `getCachedAccessories()`
+
 ## [2.3.0] - 2026-01-29
 
 ### Added
